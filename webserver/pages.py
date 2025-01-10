@@ -669,7 +669,7 @@ loading logs...
                     runtime_logs.value = req.responseText;
                     
                     //Start a new update timer
-                    timeoutID = setTimeout('loadData()', 1000);
+                    timeoutID = setTimeout('loadData()', 10000);
                 }
                 else
                 {

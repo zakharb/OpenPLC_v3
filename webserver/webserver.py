@@ -466,17 +466,30 @@ def login():
 
 @app.route('/start_plc')
 def start_plc():
+    app.logger.debug("Route /start_plc accessed")
     global openplc_runtime
-    if (flask_login.current_user.is_authenticated == False):
+    if not flask_login.current_user.is_authenticated:
+        print("User not authenticated. Redirecting to login.")
         return flask.redirect(flask.url_for('login'))
-    else:
+    
+    try:
+        app.logger.debug("Stopping monitor...")
         monitor.stop_monitor()
+        app.logger.debug("Starting runtime...")
         openplc_runtime.start_runtime()
-        time.sleep(1)
+        time.sleep(5)
+        app.logger.debug("Configuring runtime...")
         configure_runtime()
+        app.logger.debug("Cleaning up monitor...")
         monitor.cleanup()
+        app.logger.debug("Parsing project file...")
         monitor.parse_st(openplc_runtime.project_file)
+        app.logger.debug("Redirecting to dashboard.")
+        # return "An error occurred", 500
         return flask.redirect(flask.url_for('dashboard'))
+    except Exception as e:
+        print(f"Error occurred: {e}")
+        return "An error occurred", 500
 
 
 @app.route('/stop_plc')
@@ -486,7 +499,7 @@ def stop_plc():
         return flask.redirect(flask.url_for('login'))
     else:
         openplc_runtime.stop_runtime()
-        time.sleep(1)
+        time.sleep(5)
         monitor.stop_monitor()
         return flask.redirect(flask.url_for('dashboard'))
 
@@ -2430,12 +2443,13 @@ if __name__ == '__main__':
         try:
             cur = conn.cursor()
             cur.execute("SELECT * FROM Programs WHERE File=?", (st_file,))
-            #cur.execute("SELECT * FROM Programs")
+            # cur.execute("SELECT * FROM Programs")
             row = cur.fetchone()
             openplc_runtime.project_name = str(row[1])
             openplc_runtime.project_description = str(row[2])
             openplc_runtime.project_file = str(row[3])
-            
+            print(openplc_runtime.project_name)
+            print(openplc_runtime.project_file)
             cur.execute("SELECT * FROM Settings")
             rows = cur.fetchall()
             cur.close()
@@ -2447,7 +2461,14 @@ if __name__ == '__main__':
                     
             if (start_run == 'true'):
                 print("Initializing OpenPLC in RUN mode...")
+
+                print("[*] Compiling OpenPLC")
+                openplc_runtime.compile_program(st_file)
+                print("[+] Compiling finished")
+                time.sleep(10)
+                print("[*] Starting OpenPLC")
                 openplc_runtime.start_runtime()
+                print("[+] Starting done")
                 time.sleep(1)
                 configure_runtime()
                 monitor.parse_st(openplc_runtime.project_file)
